@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
     {
         clntSock = AcceptTCPConnection(servSock);
         /* Fork child process and report any errors */
-        if ((processID = fork()) < 0)
+        if ((processID = fork()) < 0)                               // fork() - Erstellt einen child-process, der parallel mit dem Prozess läuft, der den fork() aufgerufen hat
             DieWithError("fork() failed");
         else if (processID == 0)  /* If this is the child process */
         {

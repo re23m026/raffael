@@ -1,5 +1,7 @@
 #include "TCPEchoServer.h"
 
+// Hiermit werden Prozesse schonmal vorbereitet und geforkt --> warten dann auf Clients
+
 void ProcessMain(int servSock);         /* Main program of process */
 
 int main(int argc, char *argv[])

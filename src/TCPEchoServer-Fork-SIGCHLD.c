@@ -4,6 +4,9 @@
 
 void ChildExitSignalHandler();     /* Function to clean up zombie child processes */
 
+// Falls ein Client schonmal eine Verbindung mit Server hatte, diese aber unterbrochen wurde (z.B. Tunnel)
+// Kann hierüber schneller wieder eine Verbindung aufgebaut werden
+
 /* Global so accessable by SIGCHLD signal handler */
 unsigned int childProcCount = 0;   /* Number of child processes */
 

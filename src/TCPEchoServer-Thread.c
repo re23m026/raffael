@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 
     for (;;) /* run forever */
     {
-	clntSock = AcceptTCPConnection(servSock);
+	clntSock = AcceptTCPConnection(servSock);       // mehrere Clients können sich mit Server verbinden (Jeder Client hat eigenen Port)
 
         /* Create separate memory for client argument */
         if ((threadArgs = (struct ThreadArgs *) malloc(sizeof(struct ThreadArgs))) 
@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
         threadArgs -> clntSock = clntSock;
 
         /* Create client thread */
-        if (pthread_create(&threadID, NULL, ThreadMain, (void *) threadArgs) != 0)
+        if (pthread_create(&threadID, NULL, ThreadMain, (void *) threadArgs) != 0)  // Jeder HandleTCPClient Aufruf wird in einemm einzigen Thread verwaltet
             DieWithError("pthread_create() failed");
         printf("with thread %ld\n", (long int) threadID);
     }
@@ -53,10 +53,10 @@ void *ThreadMain(void *threadArgs)
     pthread_detach(pthread_self()); 
 
     /* Extract socket file descriptor from argument */
-    clntSock = ((struct ThreadArgs *) threadArgs) -> clntSock;
+    clntSock = ((struct ThreadArgs *) threadArgs) -> clntSock;              // Für jeden Client wird ein eigener Socket hergestellt
     free(threadArgs);              /* Deallocate memory for argument */
 
-    HandleTCPClient(clntSock);
+    HandleTCPClient(clntSock);      // Hier wird HandleTCPClient für jeden Client ausgeführt
 
     return (NULL);
 }
