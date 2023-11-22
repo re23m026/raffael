@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// Alles in UNIX wird wie eine File angesehen (Auch Semaphores)
+//
+
 #define EINTR -1
 
 // These variables need to be global, since they are used by the threads

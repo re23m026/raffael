@@ -2,9 +2,11 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+// Mutex ist bestimmte Struktur in C, die EXCLUSION erlaubt
+
 void *functionC ();
-pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
-int counter = 0;
+pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER; // MUTEX schützt vor Mehrfachaufrufen von Threads
+int counter = 0;      // Wollen mit beiden Threads diese globale Variable erhöhen
 
 int main (void )
 {
@@ -37,7 +39,7 @@ int main (void )
 void *
 functionC ()
 {
-  pthread_mutex_lock (&mutex1);
+  pthread_mutex_lock (&mutex1);   // Wenn einer von beiden Prozessen auf diesen MUTEX zugreift, muss der andere Prozess warten
   counter++;
   printf ("Counter value: %d\n", counter);
   pthread_mutex_unlock (&mutex1);

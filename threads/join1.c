@@ -11,6 +11,7 @@ int main (void )
   pthread_t thread_id[NTHREADS];
   int i, j;
 
+  // Hier starten wir jetzt 10.000 Threads
   for (i = 0; i < NTHREADS; i++)
     {
       pthread_create (&thread_id[i], NULL, thread_function, NULL);
@@ -18,7 +19,7 @@ int main (void )
 
   for (j = 0; j < NTHREADS; j++)
     {
-      pthread_join (thread_id[j], NULL);
+      pthread_join (thread_id[j], NULL);  // Hiermit werden alle erstellten Threads wieder aufgeräumt
     }
 
   /* Now that all threads are complete I can print the final result.     */
@@ -33,7 +34,7 @@ void *
 thread_function (void *dummyPtr)
 {
   printf ("Thread number %ld\n", pthread_self ());
-  pthread_mutex_lock (&mutex1);
-  counter++;
+  pthread_mutex_lock (&mutex1);   // Paralleler Zugriff geschützt durch MUTEX
+  counter++;              // Jeder Thread soll den Counter um 1 erhöhren
   pthread_mutex_unlock (&mutex1);
 }
