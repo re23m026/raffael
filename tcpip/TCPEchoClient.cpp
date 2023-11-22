@@ -121,6 +121,7 @@ int main(int argc, char *argv[])
     // Speichern aller Werte in einem Array
     string zwispei = "";
     int i = 0;
+    int size = 360;
     while((elem = inputReceived.find(",")) != string::npos)
     {
         try
@@ -140,7 +141,7 @@ int main(int argc, char *argv[])
         i++;
     }
 
-    for(i=0 ; i < 360 ; i++)
+    for(i=0 ; i < size ; i++)
     {
         std::cout << i << ": " << ranges[i] << std::endl;
     }
