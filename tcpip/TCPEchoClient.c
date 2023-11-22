@@ -4,8 +4,9 @@
 #include <stdlib.h>     /* for atoi() and exit() */
 #include <string.h>     /* for memset() */
 #include <unistd.h>     /* for close() */
+#include <string.h>
 
-#define RCVBUFSIZE 32   /* Size of receive buffer */    // Wird für uns noch komplexer werden, weil wir nicht wissen wie viele Infos,... kommmen. 32 safe anpassen
+#define RCVBUFSIZE 2000   /* Size of receive buffer */    // Wird für uns noch komplexer werden, weil wir nicht wissen wie viele Infos,... kommmen. 32 safe anpassen
                         // Client sendet zwar was, muss ja aber auch was zurück empfangen -- wissen aber nicht wie viel empfangen wird 
 
 void DieWithError(char *errorMessage);  /* Error handling function */
@@ -19,7 +20,7 @@ int main(int argc, char *argv[])
     char *echoString;                /* String to send to echo server */        // Pointer auf String
     char echoBuffer[RCVBUFSIZE];     /* Buffer for echo string */               // Für das Wiederempfangen der gesendeten Message
     unsigned int echoStringLen;      /* Length of string to echo */
-    int bytesRcvd, totalBytesRcvd;   /* Bytes read in single recv() 
+    int bytesRcvd, totalBytesRcvd = 0;   /* Bytes read in single recv() 
                                         and total bytes read */
 
     if ((argc < 3) || (argc > 4))    /* Test for correct number of arguments */
@@ -72,16 +73,34 @@ int main(int argc, char *argv[])
     /* Receive the same string back from the server */
     totalBytesRcvd = 0;
     printf("Received: ");                /* Setup to print the echoed string */
-    while (totalBytesRcvd < echoStringLen)
+    
+    // while (totalBytesRcvd < echoStringLen)
+    char *text;
+    char *text2;
+    for (;;)
     {
         /* Receive up to the buffer size (minus 1 to leave space for
            a null terminator) bytes from the sender */
         if ((bytesRcvd = recv(sock, echoBuffer, RCVBUFSIZE - 1, 0)) <= 0)   // Wenn es nicht klappt, < 0
             DieWithError("recv() failed or connection closed prematurely");     // Wenn es nicht geklappt hat --> Handler
         totalBytesRcvd += bytesRcvd;   /* Keep tally of total bytes */          // Was wir tatsächlich empfangen haben wird "totalBytesRcvd" hinzugefügt (+=)
-        echoBuffer[bytesRcvd] = '\0';  /* Terminate the string! */              // wird auch in "echoBuffer" reingeschrieben ( = '/0' bedeutet ... end of string)
-        printf("%s", echoBuffer);      /* Print the echo buffer */
+        echoBuffer[bytesRcvd + 1] = '\0';  /* Terminate the string! */              // wird auch in "echoBuffer" reingeschrieben ( = '/0' bedeutet ... end of string)
+        
+        //printf("%s", echoBuffer);      /* Print the echo buffer */
+
+        text = text.append(echoBuffer);
+        if (text.find("END") != string::npos)
+        {
+            close(sock);
+            break;
+        }    
     }
+
+    text2 = text;
+
+    printf(text2);
+
+    printf(text);
 
     printf("\n");    /* Print a final linefeed */
 
