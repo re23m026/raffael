@@ -36,5 +36,61 @@ void DieWithError(const char *errorMessage)
 
 int main(int argc, char *argv[])
 {
-    
+    // Definition der Variablen
+
+
+    // Definition der Semaphoren
+
+
+    // Shared Memory
+
+
+    // Shared Memory erstellen
+
+
+    // Schauen, ob Programm korrekt aufgerufen wurde
+
+ 
+    // Semaphore erstellen
+
+
+    // Shared Memory für Position erstellen
+
+
+    // FOREVER SCHLEIFE
+
+    // Stream erstellen über TCPIP
+    // if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+    //     {
+    //         DieWithError("socket() failed");
+    //     }
+
+
+    // Struktur der Server-Adresse definieren
+
+
+    // Verbindung zu Echo Server aufbauen
+
+
+    // Daten erhalten bis zur Buffer-Größe (Minus 1 damit noch Platz für NULL Terminator ist)
+
+
+    // Erhaltene Daten ausschneiden bis auf Zahlen
+
+
+    // Eingehende Nummern speichern
+
+
+    // Filter für Range 0.02 - 0.8
+
+
+    // sembuf Struktur aufsetzen
+
+
+    // Alle Ranges durchgehen und den kleinsten speichern inkl. coressponding Winkel
+
+
+    // sembuf Struktur aufsetzen
+
+
 }
