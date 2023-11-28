@@ -47,7 +47,29 @@ int main(int argc, char *argv[])
                                         and total bytes read */
     float odom[10];
 
+    // SEMAPHOREN
+    int ID_LIDAR;
+    union semun {
+        int val;
+        struct semid_ds *buf;
+        ushort *array;
+    } arg;
 
+    arg.val = 0;
+    struct sembuf operations_LIDAR[1];
+    int retval_LIDAR;   // Returns the value from semop()
+
+    // SHARED MEMORY
+    ID_LIDAR = semget(Key, 1, 0666 | IPC_CREAT);
+
+    if (ID_LIDAR < 0) {
+        fprintf(stderr, "Unable to obtain at least one of the semaphores. \n");
+        exit(0);
+    } 
+
+
+
+    // TODO: Müssen doch gar kein Wort senden?
     if ((argc < 3) || (argc > 4))    /* Test for correct number of arguments */
     {
        fprintf(stderr, "Usage: %s <Server IP> <Echo Word> [<Echo Port>]\n",     // Brauchen mind. die 3 Argumente (Usage = Programmname)
@@ -63,6 +85,24 @@ int main(int argc, char *argv[])
     else
         echoServPort = 7;  /* 7 is the well-known port for the echo service */  // Wenn Argument <Echo Port> nicht übergeben wird, standardmäßig auf 7 gesetzt
 
+    // Semaphoren
+    ID_LIDAR = semget(Key, 1, 0666);
+    if (ID_LIDAR < 0) {
+        fprintf(stderr, "Program semb cannot find semaphore, exiting. \n");
+        exit(0);
+    }
+
+    // Shared Memory  
+    LidarPtr = (SharedMemoryLidar *)shmat(ID_LIDAR, NULL, 0);
+    if (LidarPtr == (SharedMemoryLidar *)-1)
+    {
+        DieWithError("shmat failed");
+        exit(EXIT_FAILURE);
+    }
+     
+    
+    // CREATE A RELIABLE STREAM SOCKET using TCP
+    
     /* Create a reliable, stream socket using TCP */            // Erstmal socket erstellen, in den der Port später gesteckt werden kann
     if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) // PF_INET = Internetprotokoll = TCP/IP Protokoll ;; Soll STREAMING Protokoll sein, bedeutet: Es sollen fortlaufend Daten geschickt und empfangen werden können
         DieWithError("socket() failed");
@@ -189,60 +229,43 @@ int main(int argc, char *argv[])
         std:cout << odom[i] << std::endl;
     }
 
+    // Erst Abfragen wenn commander verarbeitet hat und am Ende wieder frei lassen
+    while (semctl(ID_LIDAR, 0, GETVAL) != 0)
+        ;
 
+    // SEMBUF STRUKTUR
 
-    // Definition der Semaphoren
+    operations_LIDAR[0].sem_num = 0;
+    operations_LIDAR[0].sem_op = +1;
+    operations_LIDAR[0].sem_flg = 0;
 
+    retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
+    if (retval_LIDAR != 0) {
+        printf("semb: V-Operation did not succeed.");
+    }
 
-    // Shared Memory
+    // X UND Y KOORDINATEN PUBLISHEN
 
+    LidarPtr->odom[0] = odom[0];
+    LidarPtr->odom[1] = odom[1];
+    LidarPtr->odom[2] = odom[2];
+    LidarPtr->odom[3] = odom[3];
 
-    // Shared Memory erstellen
+    cout << odom[0] << endl;
+    cout << odom[1] << endl;
+    cout << odom[2] << endl;
+    cout << odom[3] << endl;
 
+    // SEMBUF STRUKTUR
 
-    // Schauen, ob Programm korrekt aufgerufen wurde
+    operations_LIDAR[0].sem_num = 0;
+    operations_LIDAR[0].sem_op = -1;
+    operations_LIDAR[0].sem_flg = 0;
 
- 
-    // Semaphore erstellen
-
-
-    // Shared Memory für Position erstellen
-
-
-    // FOREVER SCHLEIFE
-
-    // Stream erstellen über TCPIP
-    // if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
-    //     {
-    //         DieWithError("socket() failed");
-    //     }
-
-
-    // Struktur der Server-Adresse definieren
-
-
-    // Verbindung zu Echo Server aufbauen
-
-
-    // Daten erhalten bis zur Buffer-Größe (Minus 1 damit noch Platz für NULL Terminator ist)
-
-
-    // Erhaltene Daten ausschneiden bis auf Zahlen
-
-
-    // Eingehende Nummern speichern
-
-
-    // Filter für Range 0.02 - 0.8
-
-
-    // sembuf Struktur aufsetzen
-
-
-    // Alle Ranges durchgehen und den kleinsten speichern inkl. coressponding Winkel
-
-
-    // sembuf Struktur aufsetzen
-
-
+    retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
+    if (retval_LIDAR != 0)
+    {
+        printf("semb: V-operation did not succeed.\n");
+    }
+    sleep(0.2); 
 }

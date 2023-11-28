@@ -67,7 +67,7 @@ int main()
 	 			 Message consMsg;
 
 	 // receive message - should test for error
-	       msgrcv(msgqid, &consMsg, sizeof(int), PROD_MSG, 0);
+	       msgrcv(msgqid, &consMsg, sizeof(int), PROD_MSG, 0);     // Über die Message-Queue wird automatisch Semaphore erstellt --> Synchronisiert sich automatisch
          cout << "Consumer read: " << consMsg.data << endl;
          sleep(rand()%3);  // 0-2 seconds
       }  // end consuming loop

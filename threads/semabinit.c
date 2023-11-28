@@ -10,7 +10,7 @@
    external identifier by which the semaphore is known to any program
    that wishes to use it. */
 
-#define KEY (815)
+#define KEY (815)    // Bei Semaphoren wird Schlüssel festgelegt
 
 int main(void)
 {
@@ -32,7 +32,7 @@ int main(void)
    /* Create the semaphore with external key KEY if it doesn't already 
       exists. Give permissions to the world. */
 
-   id = semget(KEY, 1, 0666 | IPC_CREAT);
+   id = semget(KEY, 1, 0666 | IPC_CREAT);    // Damit kann man festlegen, wer auf die Semaphore zugreifen kann
 
    /* Always check system returns. */
 
