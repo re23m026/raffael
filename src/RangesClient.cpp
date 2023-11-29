@@ -1,16 +1,37 @@
+#include <math.h>
 #include <stdio.h>      /* for printf() and fprintf() */
 #include <sys/socket.h> /* for socket(), connect(), send(), and recv() */
 #include <arpa/inet.h>  /* for sockaddr_in and inet_addr() */
 #include <stdlib.h>     /* for atoi() and exit() */
 #include <string.h>     /* for memset() */
 #include <unistd.h>     /* for close() */
+#include <sys/wait.h>   /*For Fork*/
+#include <sys/types.h>  /*For Fork*/
 #include <string>
 #include <iostream>
+#include <sys/ipc.h> //shared memory
+#include <sys/shm.h> //shared memory
+#include <signal.h>
+#include <sys/sem.h>
 
 using namespace std;
 
 #define RCVBUFSIZE 1000   /* Size of receive buffer */    // Wird für uns noch komplexer werden, weil wir nicht wissen wie viele Infos,... kommmen. 32 safe anpassen
                         // Client sendet zwar was, muss ja aber auch was zurück empfangen -- wissen aber nicht wie viel empfangen wird 
+
+#define Key (816)
+
+// SHARED MEMORY
+struct SharedMemoryLidar 
+{
+    float distance;
+    int angle;
+    float odom[10];
+};
+
+int LidarID;
+SharedMemoryLidar *LidarPtr;
+int mutex, empty, full, init;
 
 void DieWithError(const char *errorMessage) /* Error handling function */
 {
@@ -31,6 +52,48 @@ int main(int argc, char *argv[])
                                         and total bytes read */
     float ranges[360];
 
+    float distance;
+    int angle;
+    int cnt = 1;
+
+    // SEMAPHOREN
+
+    int ID_LIDAR;
+
+    union semun 
+    {
+        int val;
+        struct semid_ds *buf;
+        ushort *array;
+    } arg;
+
+    arg.val = 0;
+    struct sembuf operations_LIDAR[1];
+    int retval_LIDAR;
+
+    ID_LIDAR = semget(Key, 1, 0666 | IPC_CREAT);
+
+    // SHARED MEMORY
+    if (ID_LIDAR < 0){
+        fprintf(stderr, "Unable to obtain at least one of the semaphores.");
+        exit(0);
+    }
+    if (semctl(ID_LIDAR, 0, SETVAL, arg) < 0) {
+        fprintf(stderr, "Cannot set semaphore value.");
+        exit(0);
+    }
+    else {
+        fprintf(stderr, "Semaphore %d initialized.", Key);
+    }
+
+    // CREATE SHARED MEMORY
+    LidarID = shmget(Key, sizeof(struct SharedMemoryLidar), 0666 | IPC_CREAT);
+
+    if (LidarID == -1)
+    {
+        DieWithError("shmgetPos failed");
+        exit(EXIT_FAILURE);
+    }
 
     if ((argc < 3) || (argc > 4))    /* Test for correct number of arguments */
     {
@@ -46,6 +109,24 @@ int main(int argc, char *argv[])
         echoServPort = atoi(argv[3]); /* Use given port, if any */
     else
         echoServPort = 7;  /* 7 is the well-known port for the echo service */  // Wenn Argument <Echo Port> nicht übergeben wird, standardmäßig auf 7 gesetzt
+
+
+    // SEMAPHOREN
+    ID_LIDAR = semget(Key, 1, 0666);
+    if (ID_LIDAR < 0)
+    {
+        fprintf(stderr, "Program semb cannot find semaphore, exiting.\n");
+        exit(0);
+    }
+
+    // SHARED MEMORY
+    LidarPtr = (SharedMemoryLidar *)shmat(LidarID, NULL, 0);
+    if (LidarPtr == (SharedMemoryLidar *)-1)
+    {
+        DieWithError("shmat failed");
+        exit(EXIT_FAILURE);
+    }
+
 
     /* Create a reliable, stream socket using TCP */            // Erstmal socket erstellen, in den der Port später gesteckt werden kann
     if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) // PF_INET = Internetprotokoll = TCP/IP Protokoll ;; Soll STREAMING Protokoll sein, bedeutet: Es sollen fortlaufend Daten geschickt und empfangen werden können
@@ -145,6 +226,59 @@ int main(int argc, char *argv[])
     {
         std::cout << i << ": " << ranges[i] << std::endl;
     }
+
+    // FILTER FOR RANGE 0.02 - 0.08
+    for (i = 0; i <= 360; i++)
+    {
+        if (ranges[i] < 0.02 || ranges[i] > 0.8)
+        {
+            ranges[i] = 0;
+        }
+    }
+
+    // SEMBUF
+    while (semctl(ID_LIDAR, 0, GETVAL) != 0)
+            ;
+
+        /* Set up the sembuf structure. */
+        operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
+        operations_LIDAR[0].sem_op = +1; /* Which operation? Subtract 1 from semaphore value : */
+        operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
+
+        retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
+        if (retval_LIDAR != 0)
+        {
+            printf("semb: V-operation did not succeed.\n");
+        }
+
+
+    // KLEINSTEN RANGE-WERT INKL. WINKEL SPEICHERN
+    LidarPtr->distance = 1;
+    for (i = 0; i <= 360; i++)
+    {
+
+        if (ranges[i] > 0 && ranges[i] < LidarPtr->distance)
+        {
+            LidarPtr->angle = i;
+            LidarPtr->distance = ranges[i];
+        }
+    }
+    cout << LidarPtr->angle << endl;
+    cout << LidarPtr->distance << endl;
+
+    // SEMBUF
+    operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
+    operations_LIDAR[0].sem_op = -1; /* Which operation? Subtract 1 from semaphore value : */
+    operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
+
+    retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
+    if (retval_LIDAR != 0)
+    {
+        printf("semb: V-operation did not succeed.\n");
+    }
+
+    sleep(0.2); /*Sleep a little bit*/
+
 
     // std::cout << inputReceived << std::endl;
 
