@@ -51,6 +51,8 @@ int main(int argc, char *argv[])
     int ID_LIDAR;
     float odom_x;
     float odom_y;
+    float lidar_x;
+    float lidar_y;
     int first = 1;
     float first_x_odom;
     float first_y_odom;
@@ -59,6 +61,9 @@ int main(int argc, char *argv[])
     float k_p = 0.1;
     float k_links = 0.1;
     float k_rechts = -0.01;
+    float distance_b;
+    float distance_c;
+    float diameter_d;
 
     union semun 
     {
@@ -108,9 +113,9 @@ int main(int argc, char *argv[])
 
 
     // FIRST COMMAND TO MOVING
-    char *sendString = new char[100];
-    string msg = "---START---{\"linear\": 0.05, \"angular\": -0.00}___END___";
-    strcpy(sendString, msg.c_str());
+    // char *sendString = new char[100];
+    // string msg = "---START---{\"linear\": 0.05, \"angular\": -0.05}___END___";
+    // strcpy(sendString, msg.c_str());
     // 1.045
 
     if ((argc < 3) || (argc > 4))    /* Test for correct number of arguments */
@@ -146,6 +151,11 @@ int main(int argc, char *argv[])
         DieWithError("connect() failed");
     }
 
+    char *sendString = new char[100];
+    string msg = "---START---{\"linear\": 0.05, \"angular\": -0.05}___END___";
+        
+    strcpy(sendString, msg.c_str());
+
     sendStringLen = msg.length();
     if (sendto(sock, sendString, sendStringLen, 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) != sendStringLen)
         DieWithError("sendto() sent a different number of bytes than expected");
@@ -175,7 +185,7 @@ int main(int argc, char *argv[])
         {
             printf("semb: V-operation did not succeed.\n");
         }
-        //SAVE FIRST VALUES TO RESET 
+        //TODO: SAVE FIRST VALUES TO RESET 
         if (first == 1)
         {
             first_x_odom = LidarPtr->odom[0];
@@ -186,7 +196,6 @@ int main(int argc, char *argv[])
 
             
             first = first + 1;
-
         }
 
         //SAVE CURRENT VALUES
@@ -197,11 +206,58 @@ int main(int argc, char *argv[])
 
         //CALCULATE ALL RELEVANT VALUES 
 
-        float lidar_x = cos((angle*M_PI)/180)*distance; 
-        float lidar_y = sin((angle*M_PI)/180)*distance;
+        lidar_x = cos((angle*M_PI)/180)*distance; 
+        lidar_y = sin((angle*M_PI)/180)*distance;
 
         lidar_x = first_x_lidar - lidar_x;
         lidar_y = first_y_lidar - lidar_y;
+
+
+        // 1. LINEAR BIS ZUM STARTPUNKT
+
+
+
+        for(;;) {
+
+            odom_x = LidarPtr->odom[0];
+            odom_y = LidarPtr->odom[1]; 
+            angle = LidarPtr->angle;
+            distance = LidarPtr->distance;
+
+            lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); 
+            lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance);
+
+            std::cout << "X: " << odom_x << std::endl;
+            std::cout << "Y: " << odom_y << std::endl;
+            std::cout << "Lidar X: " << lidar_x << std::endl;
+            std::cout << "Lidar Y: " << lidar_y << std::endl;
+
+
+            float diff_x = 1.039 - 0.9*odom_x + 0.1*lidar_x;
+            float diff_y = 0 - 0.9*odom_y + 0.1*lidar_y;
+
+            float rho = sqrt(diff_x*diff_x + diff_y*diff_y);
+            float alpha = 0 + atan2(diff_y,diff_x);
+            float beta = 0 - alpha;
+
+            float v = k_p * rho;
+            float w = k_rechts * alpha + k_links * beta;
+                
+            msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
+            strcpy(sendString, msg.c_str()); // Befehl zum Fahren
+
+        }
+
+
+        // 2. LINEARE REGELUNG UM DIE SÄULE
+        //      Am besten kontinuerilich in die Drehung wechseln
+
+
+
+        // 3. LINEAR ZURÜCK ZUM STARTPUNKT
+
+
+
 
         float diff_x = 1.039 - 0.9*odom_x + 0.1*lidar_x;
         float diff_y = 0 - 0.9*odom_y + 0.1*lidar_y;
@@ -209,16 +265,6 @@ int main(int argc, char *argv[])
         float rho = sqrt(diff_x*diff_x + diff_y*diff_y);
         float alpha = 0 + atan2(diff_y,diff_x);
         float beta = 0 - alpha;
-
-
-
-        //cout << distance << endl;
-        //cout << angle << endl;
-        //cout << rho << endl;
-        //cout << alpha << endl;
-        //cout << beta << endl;
-
-
 
         float v = k_p * rho;
         float w = k_rechts * alpha + k_links * beta;
@@ -304,6 +350,9 @@ int main(int argc, char *argv[])
     // for (;;) /* Run forever */
     //{
     /* Broadcast sendString in datagram to clients every 3 seconds*/
+
+
+
 
     // sleep(10);   /* Avoids flooding the network */
     msg = "---START---{\"linear\": 0.0, \"angular\": 0.00}___END___";

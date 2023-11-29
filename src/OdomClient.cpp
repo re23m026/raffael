@@ -67,8 +67,6 @@ int main(int argc, char *argv[])
         exit(0);
     } 
 
-
-
     // TODO: Müssen doch gar kein Wort senden?
     if ((argc < 3) || (argc > 4))    /* Test for correct number of arguments */
     {
@@ -86,14 +84,32 @@ int main(int argc, char *argv[])
         echoServPort = 7;  /* 7 is the well-known port for the echo service */  // Wenn Argument <Echo Port> nicht übergeben wird, standardmäßig auf 7 gesetzt
 
     // Semaphoren
-    ID_LIDAR = semget(Key, 1, 0666);
-    if (ID_LIDAR < 0) {
-        fprintf(stderr, "Program semb cannot find semaphore, exiting. \n");
+    LidarID = semget(Key, 1, 0666);
+    if (ID_LIDAR < 0)
+    {
+        fprintf(stderr, "Unable to obtain at least one of the semaphores.\n");
         exit(0);
     }
 
+    if (semctl(ID_LIDAR, 0, SETVAL, arg) < 0)
+    {
+        fprintf(stderr, "Cannot set semaphore value.\n");
+        exit(0);
+    }
+    else
+    {
+        fprintf(stderr, "Semaphore %d initialized.\n", Key);
+    }
+
+    LidarID = shmget(Key, sizeof(struct SharedMemoryLidar), 0666 | IPC_CREAT);
+    if (LidarID == -1)
+    {
+        DieWithError("shmgetPos failed");
+        exit(EXIT_FAILURE);
+    }
+
     // Shared Memory  
-    LidarPtr = (SharedMemoryLidar *)shmat(ID_LIDAR, NULL, 0);
+    LidarPtr = (SharedMemoryLidar *)shmat(LidarID, NULL, 0);
     if (LidarPtr == (SharedMemoryLidar *)-1)
     {
         DieWithError("shmat failed");
@@ -251,10 +267,10 @@ int main(int argc, char *argv[])
     LidarPtr->odom[2] = odom[2];
     LidarPtr->odom[3] = odom[3];
 
-    cout << odom[0] << endl;
-    cout << odom[1] << endl;
-    cout << odom[2] << endl;
-    cout << odom[3] << endl;
+    // cout << odom[0] << endl;
+    // cout << odom[1] << endl;
+    // cout << odom[2] << endl;
+    // cout << odom[3] << endl;
 
     // SEMBUF STRUKTUR
 
