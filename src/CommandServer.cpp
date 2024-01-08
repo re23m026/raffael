@@ -19,7 +19,7 @@ using namespace std;
 int i = 0;
 
 // SHARED MEMORY
-struct SharedMemoryLidar
+struct SharedMemoryLidar     //LidarPtr greift hierauf zurück
 {
     float distance;
     int angle;
