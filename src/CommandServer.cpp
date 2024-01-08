@@ -26,9 +26,14 @@ struct SharedMemoryLidar     //LidarPtr greift hierauf zurück
     float odom[10];
 };
 
-int LidarID;                  // Shared memory id
+int LidarID;                  // saves ID of the shared-memory segment, as soon as the segment is produced (via 'shmget')
 SharedMemoryLidar *LidarPtr;  // Pointer to shared memory
-int mutex, empty, full, init; // Semaphore ids COPIED
+
+// Semaphore ids COPIED
+int mutex; // semaphor mutex (=gegenseitiger Auschluss) schützt krit. Abschnitte des Codes und stellt sicher, dass nur ein Thread/Prozess gleichzeitig auf den shared memory zugreift
+int empty; // ??semaphor empty gibt Zustand der Warteschlange an??
+int full; //??semaphor full gibt Zustand der Warteschlange an??
+int init;  // semaphor zur Initialisierung des shared memories
 
 void DieWithError(const char *errorMessage)
 {
@@ -67,14 +72,14 @@ int main(int argc, char *argv[])
     float diameter_d;
 
     // SEMAPHOREN
-    union semun     
+    union semun     //union: datenstruktur, speichert verschiedene Datentypen unter demselben Speicherplatz  --> Selber SPeicherbereich repräsentier versch. Datentypen 
     {
-        int val;
+        int val;   
         struct semid_ds *buf;
         ushort *array;
     } arg;
 
-    arg.val = 0;
+    arg.val = 0; 
     struct sembuf operations_LIDAR[1];
     int retval_LIDAR;
 
