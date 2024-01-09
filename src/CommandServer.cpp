@@ -41,7 +41,7 @@ void DieWithError(const char *errorMessage)
     exit(1);
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
 {
     int sock;                        /* Socket descriptor */
     struct sockaddr_in echoServAddr; /* Echo server address */                  // Hiermit wird später über memset() Server Adresse angelegt/erstellt --> STRUCT: strukturierte Var. mit Untervariablen
