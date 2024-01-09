@@ -63,10 +63,10 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
     float first_y_odom;
     float first_x_lidar;
     float first_y_lidar;
-    float k_rho = 0.1;         // (zu fahrende Distanz) - Hyperparameter, muss definiert werden
-    float k_beta = 0.1;        // Abstand zur linken Wand
-    float k_alpha = -0.01;     // Abstand zur rechten Wand
-    float distance_to_drive = 0.4;  // Strecke die wir zu Beginn linear fahren wollen
+    float k_rho = 0.2;         // (zu fahrende Distanz) - Hyperparameter, muss definiert werden
+    float k_beta = 0.2;        // Abstand zur linken Wand
+    float k_alpha = -0.5;     // Abstand zur rechten Wand
+    float distance_to_drive = 5;  // Strecke die wir zu Beginn linear fahren wollen
     float distance_b;
     float distance_c;
     float diameter_d;
@@ -208,133 +208,129 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
         }
 
 
+        // Aktuellen Werte speichern (Relativ zum Startpunkt)
+        odom_x = LidarPtr->odom[0] - first_x_odom;
+        odom_y = LidarPtr->odom[1] - first_y_odom; 
+        angle = LidarPtr->angle;
+        distance = LidarPtr->distance;
 
-        for(;;) {
+        lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+        lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
 
-            // Aktuellen Werte speichern (Relativ zum Startpunkt)
-            odom_x = LidarPtr->odom[0] - first_x_odom;
-            odom_y = LidarPtr->odom[1] - first_y_odom; 
-            angle = LidarPtr->angle;
-            distance = LidarPtr->distance;
+        std::cout << "X: " << odom_x << std::endl;
+        std::cout << "Y: " << odom_y << std::endl;
+        std::cout << "Lidar X: " << lidar_x << std::endl;
+        std::cout << "Lidar Y: " << lidar_y << std::endl;
 
-            lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
-            lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+        // Calculate the pos. + ori. of the robot in respect to the laser and odom data
 
-            std::cout << "X: " << odom_x << std::endl;
-            std::cout << "Y: " << odom_y << std::endl;
-            std::cout << "Lidar X: " << lidar_x << std::endl;
-            std::cout << "Lidar Y: " << lidar_y << std::endl;
+        float diff_x = 1.039 - 0.9*odom_x + 0.1*lidar_x;    // ?
+        float diff_y = 0 - 0.9*odom_y + 0.1*lidar_y;        // ?
+        float diff_teta = 0;                                // Für lineare Beweg. bleibt teta = 0
 
-            // Calculate the pos. + ori. of the robot in respect to the laser and odom data
+        float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
+        float alpha = diff_teta + atan2(diff_y,diff_x);
+        float beta = diff_teta - alpha;
 
-            float diff_x = 1.039 - 0.9*odom_x + 0.1*lidar_x;    // ?
-            float diff_y = 0 - 0.9*odom_y + 0.1*lidar_y;        // ?
-            float diff_teta = 0;                                // Für lineare Beweg. bleibt teta = 0
-
-            float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
-            float alpha = diff_teta + atan2(diff_y,diff_x);
-            float beta = diff_teta - alpha;
-
-            float v = k_rho * rho;
-            float w = k_alpha * alpha + k_beta * beta;
-                
-            if(v > 0.06){       // ?
-                v = 0.06;
-            }
-
-            if(w > 0.07){
-                w = 0.07;
-            }
-
-            msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
-            strcpy(sendString, msg.c_str()); // Befehl zum Fahren
-
-            std::cout << msg << std::endl;
-
-            // Überprüfung ob Zieldistanz erreicht wurde
-            if (lidar_x >= first_x_lidar + distance_to_drive)
-            {
-                cout << "Startpunkt für die Kreisbahn erreicht" << endl;
-                break;
-            }
-
+        float v = k_rho * rho;
+        float w = k_alpha * alpha + k_beta * beta;
+            
+        if(v > 0.06){       // ?
+            v = 0.06;
         }
+
+        if(w > 0.07){
+            w = 0.07;
+        }
+
+        msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
+        strcpy(sendString, msg.c_str()); // Befehl zum Fahren
+
+        std::cout << msg << std::endl;
+
+        // Überprüfung ob Zieldistanz erreicht wurde
+        if (lidar_x >= first_x_lidar + distance_to_drive)
+        {
+            cout << "Startpunkt für die Kreisbahn erreicht" << endl;
+            break;
+        }
+
 
         // 2. LINEARE REGELUNG UM DIE SÄULE     (IDEE)
             // Am besten kontinuerilich in die Drehung wechseln
 
-        float distance_bar = 0.2;       // muss angepasst werden
-        float diff_distance_bar = 0.05;
+        // float distance_bar = 0.2;       // muss angepasst werden
+        // float diff_distance_bar = 0.05;
 
-        for ( ; ; ) {
-            odom_x = LidarPtr->odom[0] - first_x_odom;
-            odom_y = LidarPtr->odom[1] - first_y_odom; 
-            angle = LidarPtr->angle;                    // Winkel mit kleinstem Abstand zur Säule (um die wir fahren wollen)
-            distance = LidarPtr->distance;              // Distanz zur Säule bei dem entsprechenden Winkel 
+        // for ( ; ; ) {
+        //     odom_x = LidarPtr->odom[0] - first_x_odom;
+        //     odom_y = LidarPtr->odom[1] - first_y_odom; 
+        //     angle = LidarPtr->angle;                    // Winkel mit kleinstem Abstand zur Säule (um die wir fahren wollen)
+        //     distance = LidarPtr->distance;              // Distanz zur Säule bei dem entsprechenden Winkel 
 
-            lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
-            lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+        //     lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+        //     lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
 
-            std::cout << angle << std::endl;
-            std::cout << distance << std::endl;
+        //     std::cout << angle << std::endl;
+        //     std::cout << distance << std::endl;
 
-            if (distance < distance_bar || distance > distance_bar) {
+        //     if (distance < distance_bar || distance > distance_bar) {
 
-                if(distance < distance_bar) {
-                    float diff_x = 1.039 - 0.9*odom_x + 0.1*lidar_x;    // TODO: Wenn Distanz kleiner, Korrektur nach rechts
-                    float diff_y = 0 - 0.9*odom_y + 0.1*lidar_y;        
-                    float diff_teta = 0;                                
+        //         if(distance < distance_bar) {
+        //             float diff_x = 1.039 - 0.9*odom_x + 0.1*lidar_x;    // TODO: Wenn Distanz kleiner, Korrektur nach rechts
+        //             float diff_y = 0 - 0.9*odom_y + 0.1*lidar_y;        
+        //             float diff_teta = 0;                                
 
-                    float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
-                    float alpha = diff_teta + atan2(diff_y,diff_x);
-                    float beta = diff_teta - alpha;
+        //             float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
+        //             float alpha = diff_teta + atan2(diff_y,diff_x);
+        //             float beta = diff_teta - alpha;
 
-                    float v = k_rho * rho;
-                    float w = k_alpha * alpha + k_beta * beta;    
+        //             float v = k_rho * rho;
+        //             float w = k_alpha * alpha + k_beta * beta;    
 
-                }
+        //         }
 
-                if(distance > distance_bar) {
-                    float diff_x = 1.039 - 0.9*odom_x + 0.1*lidar_x;  // TODO: wenn Distanz größer, Korrektur nach links
-                    float diff_y = 0 - 0.9*odom_y + 0.1*lidar_y;        
-                    float diff_teta = 0;                                
+        //         if(distance > distance_bar) {
+        //             float diff_x = 1.039 - 0.9*odom_x + 0.1*lidar_x;  // TODO: wenn Distanz größer, Korrektur nach links
+        //             float diff_y = 0 - 0.9*odom_y + 0.1*lidar_y;        
+        //             float diff_teta = 0;                                
 
-                    float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
-                    float alpha = diff_teta + atan2(diff_y,diff_x);
-                    float beta = diff_teta - alpha;
+        //             float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
+        //             float alpha = diff_teta + atan2(diff_y,diff_x);
+        //             float beta = diff_teta - alpha;
 
-                    float v = k_rho * rho;
-                    float w = k_alpha * alpha + k_beta * beta;                 
-                }
+        //             float v = k_rho * rho;
+        //             float w = k_alpha * alpha + k_beta * beta;                 
+        //         }
 
-            }
+        //     }
 
-        }
+        // }
 
         // 3. LINEAR ZURÜCK ZUM STARTPUNKT
 
 
-    //}
+        //}
 
-    if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
-    {
-        DieWithError("socket() failed");
-    }
+        if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+        {
+            DieWithError("socket() failed");
+        }
 
-    /* Construct the server address structure */
-    memset(&echoServAddr, 0, sizeof(echoServAddr)); /* Zero out structure */
-    echoServAddr.sin_family = AF_INET;              /* Internet address family */
-    echoServAddr.sin_addr.s_addr = inet_addr(servIP);   /* Server IP address */
-    echoServAddr.sin_port = htons(echoServPort);           /* Server port */
+        /* Construct the server address structure */
+        memset(&echoServAddr, 0, sizeof(echoServAddr)); /* Zero out structure */
+        echoServAddr.sin_family = AF_INET;              /* Internet address family */
+        echoServAddr.sin_addr.s_addr = inet_addr(servIP);   /* Server IP address */
+        echoServAddr.sin_port = htons(echoServPort);           /* Server port */
 
-    if (connect(sock, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) < 0)
-    {
-        DieWithError("connect() failed");
-    }
-    sendStringLen = msg.length();
-    if (sendto(sock, sendString, sendStringLen, 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) != sendStringLen)
-        DieWithError("sendto() sent a different number of bytes than expected");
-    close(sock);
+        if (connect(sock, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) < 0)
+        {
+            DieWithError("connect() failed");
+        }
+        sendStringLen = msg.length();
+        if (sendto(sock, sendString, sendStringLen, 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) != sendStringLen)
+            DieWithError("sendto() sent a different number of bytes than expected");
+        close(sock);
 
 
         
@@ -367,13 +363,13 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
             //cout << "FIRST" << endl;
 
             //ENDING PROGRAMM IF DISTANCE REACHED
-            if (lidar_x >= first_x_lidar +0.4)
-            {
-                cout << "SECOND" << endl;
-                break;
-            }
+            // if (lidar_x >= first_x_lidar +0.4)
+            // {
+            //     cout << "SECOND" << endl;
+            //     break;
+            // }
         //}
-        sleep(0.2);
+        sleep(0.1);
     }
 
     /* Find length of sendString */
@@ -382,7 +378,7 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
     /* Broadcast sendString in datagram to clients every 3 seconds*/
 
 
-
+    // LINEAR ZURÜCK FAHREN
 
     // sleep(10);   /* Avoids flooding the network */
     msg = "---START---{\"linear\": 0.0, \"angular\": 0.00}___END___";
