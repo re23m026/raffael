@@ -63,13 +63,14 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
     float first_y_odom;
     float first_x_lidar;
     float first_y_lidar;
-    float k_rho = 0.2;         // (zu fahrende Distanz) - Hyperparameter, muss definiert werden
-    float k_beta = 0.2;        // Abstand zur linken Wand
-    float k_alpha = -0.5;     // Abstand zur rechten Wand
-    float distance_to_drive = 5;  // Strecke die wir zu Beginn linear fahren wollen
+    float k_rho = 0.1;         // (zu fahrende Distanz) - Hyperparameter, muss definiert werden
+    float k_beta = 0;        // Abstand zur linken Wand
+    float k_alpha = 0;     // Abstand zur rechten Wand
+    float distance_to_drive = 0.6;  // Strecke die wir zu Beginn linear fahren wollen
     float distance_b;
     float distance_c;
     float diameter_d;
+    float distance_bar = 0.2;
 
     // SEMAPHOREN
     union semun     //union: datenstruktur, speichert verschiedene Datentypen unter demselben Speicherplatz  --> Selber SPeicherbereich repräsentier versch. Datentypen 
@@ -248,12 +249,6 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
 
         std::cout << msg << std::endl;
 
-        // Überprüfung ob Zieldistanz erreicht wurde
-        if (lidar_x >= first_x_lidar + distance_to_drive)
-        {
-            cout << "Startpunkt für die Kreisbahn erreicht" << endl;
-            break;
-        }
 
 
         // 2. LINEARE REGELUNG UM DIE SÄULE     (IDEE)
@@ -332,17 +327,6 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
             DieWithError("sendto() sent a different number of bytes than expected");
         close(sock);
 
-
-        
-        
-        //cout << "DATA" << endl;
-        //cout << odom_x << endl;
-        //cout << odom_y << endl;
-        //cout << lidar_x << endl;
-        //cout << lidar_y << endl;
-        //cout << "ANGLE" << endl;
-        //cout << angle << endl;
-
         operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
         operations_LIDAR[0].sem_op = -1; /* Which operation? Subtract 1 from semaphore value : */
         operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
@@ -352,6 +336,12 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
         if (retval_LIDAR != 0)
         {
             printf("semb: V-operation did not succeed.\n");
+        }
+
+        if (odom_x >= first_x_odom + distance_to_drive)
+        {
+            cout << "Startpunkt für die Kreisbahn erreicht" << endl;
+            break;
         }
 
         //cout << angle << endl;
@@ -378,12 +368,170 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
     /* Broadcast sendString in datagram to clients every 3 seconds*/
 
 
-    // LINEAR ZURÜCK FAHREN
+    std::cout << "Schleife verlassen" << std::endl;
 
-    // sleep(10);   /* Avoids flooding the network */
+    sleep(3);   /* Avoids flooding the network */
     msg = "---START---{\"linear\": 0.0, \"angular\": 0.00}___END___";
     strcpy(sendString, msg.c_str());
     //}
+
+    sleep(2);
+    // KREISBAHN
+    for (;;)
+    {
+
+        while (semctl(ID_LIDAR, 0, GETVAL) != 0)
+            ;
+
+        /* Set up the sembuf structure. */
+        operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
+        operations_LIDAR[0].sem_op = +1; /* Which operation? Subtract 1 from semaphore value : */
+        operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
+
+
+        retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
+        if (retval_LIDAR != 0)
+        {
+            printf("semb: V-operation did not succeed.\n");
+        }
+        
+        
+        
+        // SAVE FIRST VALUES TO RESET 
+        if (first == 1)
+        {
+            first_x_odom = LidarPtr->odom[0];
+            first_y_odom = LidarPtr->odom[1];
+            
+            first_x_lidar = cos((LidarPtr->angle*M_PI)/180)*LidarPtr->distance;
+            first_y_lidar = sin((LidarPtr->angle*M_PI)/180)*LidarPtr->distance;
+
+            
+            first = first + 1;
+        }
+
+
+        // Aktuellen Werte speichern (Relativ zum Startpunkt)
+        odom_x = LidarPtr->odom[0] - first_x_odom;
+        odom_y = LidarPtr->odom[1] - first_y_odom; 
+        angle = LidarPtr->angle;
+        distance = LidarPtr->distance;
+
+        lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+        lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+
+        std::cout << "X: " << odom_x << std::endl;
+        std::cout << "Y: " << odom_y << std::endl;
+        std::cout << "Lidar X: " << lidar_x << std::endl;
+        std::cout << "Lidar Y: " << lidar_y << std::endl;
+
+        if(distance < distance_bar) {
+            float k_beta_kreis = 0.1;
+            float k_alpha_kreis = 0.8;
+
+            float diff_x = 1.039 - 0.9*odom_x + 0.1*lidar_x;    // TODO: Wenn Distanz kleiner, Korrektur nach rechts
+            float diff_y = 0 - 0.9*odom_y + 0.1*lidar_y;        
+            float diff_teta = 0;                                
+
+            float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
+            float alpha = diff_teta + atan2(diff_y,diff_x);
+            float beta = diff_teta - alpha;
+
+            float v = k_rho * rho;
+            float w = k_alpha_kreis * alpha + k_beta_kreis * beta;    
+
+            msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
+            strcpy(sendString, msg.c_str()); // Befehl zum Fahren        
+
+        }
+
+        if(distance > distance_bar) {
+            float k_beta_kreis = 0.8;
+            float k_alpha_kreis = 0.1;
+
+            float diff_x = 1.039 - 0.9*odom_x + 0.1*lidar_x;  // TODO: wenn Distanz größer, Korrektur nach links
+            float diff_y = 0 - 0.9*odom_y + 0.1*lidar_y;        
+            float diff_teta = 0;                                
+
+            float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
+            float alpha = diff_teta + atan2(diff_y,diff_x);
+            float beta = diff_teta - alpha;
+
+            float v = k_rho * rho;
+            float w = k_alpha_kreis * alpha + k_beta_kreis * beta;         
+
+            msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
+            strcpy(sendString, msg.c_str()); // Befehl zum Fahren        
+        }
+
+
+        // // Calculate the pos. + ori. of the robot in respect to the laser and odom data
+
+        // float diff_x = 1.039 - 0.9*odom_x + 0.1*lidar_x;    // ?
+        // float diff_y = 0 - 0.9*odom_y + 0.1*lidar_y;        // ?
+        // float diff_teta = 0;                                // Für lineare Beweg. bleibt teta = 0
+
+        // float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
+        // float alpha = diff_teta + atan2(diff_y,diff_x);
+        // float beta = diff_teta - alpha;
+
+        // float v = k_rho * rho;
+        // float w = k_alpha_kreis * alpha + k_beta_kreis * beta;
+            
+        // if(v < 0.06){       // ?
+        //     v = 0.07;
+        // }
+
+        // if(w > 0.07){
+        //     w = 0.07;
+        // }
+
+        // msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
+        // strcpy(sendString, msg.c_str()); // Befehl zum Fahren
+
+        std::cout << msg << std::endl;
+
+        if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+        {
+            DieWithError("socket() failed");
+        }
+
+        /* Construct the server address structure */
+        memset(&echoServAddr, 0, sizeof(echoServAddr)); /* Zero out structure */
+        echoServAddr.sin_family = AF_INET;              /* Internet address family */
+        echoServAddr.sin_addr.s_addr = inet_addr(servIP);   /* Server IP address */
+        echoServAddr.sin_port = htons(echoServPort);           /* Server port */
+
+        if (connect(sock, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) < 0)
+        {
+            DieWithError("connect() failed");
+        }
+        sendStringLen = msg.length();
+        if (sendto(sock, sendString, sendStringLen, 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) != sendStringLen)
+            DieWithError("sendto() sent a different number of bytes than expected");
+        close(sock);
+
+        operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
+        operations_LIDAR[0].sem_op = -1; /* Which operation? Subtract 1 from semaphore value : */
+        operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
+        /* So do the operation! */
+        // std::cout<<"2:      LIDAR"<<std::endl;
+        retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
+        if (retval_LIDAR != 0)
+        {
+            printf("semb: V-operation did not succeed.\n");
+        }
+
+        if (lidar_x >= first_x_lidar + distance_to_drive)
+        {
+            cout << "Kreisbahn beendet" << endl;
+            break;
+        }
+
+        sleep(0.1);
+    }
+
+
 
     if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
     {
