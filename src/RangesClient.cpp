@@ -252,7 +252,6 @@ int main(int argc, char *argv[])
                 printf("semb: V-operation did not succeed.\n");
             }
 
-
         // KLEINSTEN RANGE-WERT INKL. WINKEL SPEICHERN
         LidarPtr->distance = 1;
         for (i = 0; i <= 360; i++)

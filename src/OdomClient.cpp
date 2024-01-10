@@ -117,7 +117,6 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
         
-        
         // CREATE A RELIABLE STREAM SOCKET using TCP
         
         /* Create a reliable, stream socket using TCP */            // Erstmal socket erstellen, in den der Port später gesteckt werden kann
@@ -157,8 +156,16 @@ int main(int argc, char *argv[])
         // printf("Received: ");                /* Setup to print the echoed string */
         
         // while (totalBytesRcvd < echoStringLen)
+        
+        
         string input;
         string inputReceived;
+        string inputReceived2;
+        float x;
+        float y;
+        float z;
+        float w;
+
         for (;;)
         {
             /* Receive up to the buffer size (minus 1 to leave space for
@@ -179,10 +186,10 @@ int main(int argc, char *argv[])
         }
 
         // Hier werden alle Input-Stream-Werte vom Robot-Server gespeichert
-        // 2 Variablen die Odom-Werte speichern, da wir den String an 2 verschiedenen Stellen aufteilen müssen
-        // TODO: Andere Lösung finden
+        // 2 Variablen die Odom-Werte speichern, da wir den String an 2 verschiedenen Stellen aufteilen müssen (input + inputReceived)
         
         inputReceived = input;
+        inputReceived2 = input;
         size_t elem;
         string getValue;
 
@@ -210,17 +217,49 @@ int main(int argc, char *argv[])
         getValue = getValue.substr(0, elem);
         odom[1] = stof(getValue);
 
+        // Array schneiden ab Orientation
+        elem = inputReceived2.find("orientation");
+        inputReceived2 = inputReceived2.substr(elem, input.length());
+        inputReceived2 = inputReceived2.substr(0, elem);
+
+        // Orientation X
+        getValue = inputReceived2;
+        elem = getValue.find("x");
+        getValue = getValue.substr(elem + 3, getValue.length());
+        elem = getValue.find(",");
+        getValue = getValue.substr(0, elem);
+        x = stof(getValue);
+        
+        // Orientation Y
+        getValue = inputReceived2;
+        elem = getValue.find("y");
+        getValue = getValue.substr(elem + 3, getValue.length());
+        elem = getValue.find(",");
+        getValue = getValue.substr(0, elem);
+        y = stof(getValue);
+        
+        // Orientation Z
+        getValue = inputReceived2;
+        elem = getValue.find("z");
+        getValue = getValue.substr(elem + 3, getValue.length());
+        elem = getValue.find(",");
+        getValue = getValue.substr(0, elem);
+        z = stof(getValue);
+        
+        // Orientation W
+        getValue = inputReceived2;
+        elem = getValue.find("w");
+        getValue = getValue.substr(elem + 3, getValue.length());
+        elem = getValue.find(",");
+        getValue = getValue.substr(0, elem);
+        w = stof(getValue);
 
         // Linear-Angular-Werte speichern
         elem = inputReceived.find("linear");
         inputReceived = inputReceived.substr(elem, inputReceived.length());
 
         elem = inputReceived.find("covariance");
-        inputReceived = inputReceived.substr(0, elem - 4);
-
-        // std::cout << input << std::endl; // TEST
-
-        // std::cout << inputReceived << std::endl; // TEST
+        inputReceived = inputReceived.substr(0, elem - 5);
 
         // Lineargeschwindigkeit (in x)
         getValue = inputReceived;
@@ -229,7 +268,6 @@ int main(int argc, char *argv[])
         elem = getValue.find(",");
         getValue = getValue.substr(0, elem);
         odom[2] = stof(getValue);
-
 
         // Winkelgeschwindigkeit (um z)
         getValue = inputReceived;
@@ -241,7 +279,18 @@ int main(int argc, char *argv[])
         getValue = getValue.substr(0, elem);
         odom[3] = stof(getValue);
 
-        for(int i = 0 ; i < 4 ; i++)
+        // Berechnung von Theta
+
+        float theta_in_rad;
+        float theta_in_deg;
+
+        theta_in_rad = atan2(2*(w*z+x*y), 1-2*((y*y)+(z*z)));
+        theta_in_deg = theta_in_rad*180/M_PI;
+
+        odom[4] = theta_in_deg;
+
+        // Terminalausgabe des Odom-Arrays
+        for(int i = 0 ; i < 5 ; i++)
         {
             std:cout << odom[i] << std::endl;
         }
@@ -267,7 +316,7 @@ int main(int argc, char *argv[])
         LidarPtr->odom[1] = odom[1];        // y
         LidarPtr->odom[2] = odom[2];        // Lineargeschwindigkeit (in x)
         LidarPtr->odom[3] = odom[3];        // Winkelgeschwindigkeit
-
+        LidarPtr->odom[4] = odom[4];        // Theta-Winkel in Deg
         // cout << odom[0] << endl;
         // cout << odom[1] << endl;
         // cout << odom[2] << endl;
