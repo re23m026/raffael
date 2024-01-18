@@ -16,7 +16,7 @@
 
 using namespace std;
 
-#define RCVBUFSIZE 1000   /* Size of receive buffer */    // Wird für uns noch komplexer werden, weil wir nicht wissen wie viele Infos,... kommmen. 32 safe anpassen
+#define RCVBUFSIZE 20000   /* Size of receive buffer */    // Wird für uns noch komplexer werden, weil wir nicht wissen wie viele Infos,... kommmen. 32 safe anpassen
                         // Client sendet zwar was, muss ja aber auch was zurück empfangen -- wissen aber nicht wie viel empfangen wird 
 
 #define Key (816)
