@@ -70,6 +70,10 @@ union semun     //union: datenstruktur, speichert verschiedene Datentypen unter 
 //     semop(semId, &op, 1);
 // }
 
+float deg2rad(float degree) {
+    return degree*M_PI/180;
+}
+
 int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
 {
     int sock;                        /* Socket descriptor */
@@ -85,7 +89,8 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
     int ID_LIDAR;
     float odom_x;
     float odom_y;
-    float odom_theta;
+    float odom_theta_deg;
+    float odom_theta_rad;
     float lidar_x;
     float lidar_y;
     int first = 1;
@@ -98,7 +103,7 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
     float k_beta = 0;        // Abstand zur linken Wand
     float k_alpha = 0;     // Abstand zur rechten Wand
     float distance_to_drive = 0.8;  // Strecke die wir zu Beginn linear fahren wollen
-    float radius = 0.2;
+    float radius = 0.4;
     //float distance_b;
     //float distance_c;
     //float diameter_d;
@@ -234,7 +239,7 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
         // Aktuellen Werte speichern (Relativ zum Startpunkt)
         odom_x = LidarPtr->odom[0];
         odom_y = LidarPtr->odom[1]; 
-        odom_theta = LidarPtr->odom[4];
+        odom_theta_deg = LidarPtr->odom[4];
         //angle = LidarPtr->angle;
         //distance = LidarPtr->distance;
 
@@ -243,7 +248,7 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
 
         std::cout << "X: " << odom_x << std::endl;
         std::cout << "Y: " << odom_y << std::endl;
-        std::cout << "Theta: " << odom_theta << std::endl;
+        std::cout << "Theta: " << odom_theta_deg << std::endl;
         //std::cout << "Lidar X: " << lidar_x << std::endl;
         //std::cout << "Lidar Y: " << lidar_y << std::endl;
 
@@ -327,18 +332,82 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
     // Speichern der aktullen Position, da diese später erneut angefahren werden muss
     float x_odom_2 = LidarPtr->odom[0];
     float y_odom_2 = LidarPtr->odom[1];
-    float theta_odom_2 = LidarPtr->odom[4];
+    float theta_odom_2_deg = LidarPtr->odom[4];
 
 
     std::cout << "Schleife verlassen......................................" << std::endl;
     std::cout << "...........x_odom_2: " << x_odom_2 << std::endl;
     std::cout << "...........y_odom_2: " << y_odom_2 << std::endl;
-    std::cout << "............theta_odom_2: " << theta_odom_2 << std::endl;
+    std::cout << "............theta_odom_2: " << theta_odom_2_deg << std::endl;
 
     // Nach Erreichen des ersten Zielpunktes, kurz stehen bleiben
     sleep(1);   /* Avoids flooding the network */
     
     //}
+
+//-----------------------Berechnung der Kreispunkte------------------------------------------------//
+
+//--Kreispunkt 1 ---//
+
+        float x_goal_1KP;
+        float y_goal_1KP;
+        float theta_goal_1KP;
+
+        float gamma_1_deg=-45.0;
+        float gamma_1_rad=deg2rad(gamma_1_deg);
+
+        float distance1=sqrt(2*radius*radius);
+
+
+        float theta_odom_2_rad=deg2rad(theta_odom_2_deg);
+        x_goal_1KP = x_odom_2 + distance1*cos(theta_odom_2_rad+gamma_1_rad);
+        y_goal_1KP = y_odom_2 + distance1*sin(theta_odom_2_rad+gamma_1_rad);
+        theta_goal_1KP = theta_odom_2_rad;
+
+//--Kreispunkt 2 ---//
+
+        float x_goal_2KP;
+        float y_goal_2KP;
+        float theta_goal_2KP;
+
+        float gamma_2_deg=0;
+        float gamma_2_rad=deg2rad(gamma_2_deg);
+
+        float distance2=2*radius;
+
+
+        theta_odom_2_rad=deg2rad(theta_odom_2_deg);
+        x_goal_2KP = x_odom_2 + distance2*cos(theta_odom_2_rad+gamma_2_rad);
+        y_goal_2KP = y_odom_2 + distance2*sin(theta_odom_2_rad+gamma_2_rad);
+        theta_goal_2KP = deg2rad(theta_odom_2_deg + 90);
+
+
+//--Kreispunkt 3 ---//
+
+        float x_goal_3KP;
+        float y_goal_3KP;
+        float theta_goal_3KP;
+
+        float gamma_3_deg=45;
+        float gamma_3_rad=deg2rad(gamma_3_deg);
+
+        float distance3=sqrt(2*radius*radius);
+
+
+        theta_odom_2_rad =deg2rad(theta_odom_2_deg);
+        x_goal_3KP = x_odom_2 + distance3*cos(theta_odom_2_rad+gamma_3_rad);
+        y_goal_3KP = y_odom_2 + distance3*sin(theta_odom_2_rad+gamma_3_rad);
+        theta_goal_3KP = deg2rad(theta_odom_2_deg + 179);
+
+
+//--Kreispunkt 4 ---//
+
+        float x_goal_4KP = x_odom_2;
+        float y_goal_4KP = y_odom_2;
+        float theta_goal_4KP;
+
+        theta_odom_2_rad = deg2rad(theta_odom_2_deg);
+        theta_goal_4KP = deg2rad(theta_odom_2_deg + 179);
 
 
     //------------- ERSTE KREIS_VIERTEL_BEWEGUNG------------------------------------------------------------------------------------
@@ -358,49 +427,15 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
             printf("semb: V-operation did not succeed.\n");
         }
 
-        float x_goal;
-        float y_goal;
-        float theta_goal;
-
-        // if(j == 0) {
-        //     x_goal = x_odom_2;
-        //     y_goal = y_odom_2;
-        //     theta_goal = theta_odom_2 + 90;
-        // }
-
-        x_goal = x_odom_2 + 1;
-        y_goal = y_odom_2 - 1;  //wieso -? wegen Fahrtrichtung?
-        theta_goal = theta_odom_2 - 45;       
-        
-        // else if(j == 1) {
-        //     x_goal = 1.2;
-        //     y_goal = 0;
-        //     theta_goal = -90;       
-        // }
-        // else if(j == 2) {
-        //     x_goal = 1;
-        //     y_goal = -0.2;
-        //     theta_goal = 180;       
-        // }
-        // else if(j == 3) {
-        //     x_goal = x_odom_2; 
-        //     y_goal = y_odom_2;
-        //     theta_goal = theta_odom_2 + 180;       
-        // }
-
-        //float gamma = theta_odom_2 - 45;     // 45 Grad, entsprechend der Geometrie des Viertelkreises
-        // float x_goal = sqrt(2*radius*radius)*cos(gamma) + x_odom_2;
-        // float y_goal = sqrt(2*radius*radius)*sin(gamma) + y_odom_2;
-        // //float theta_goal = 0 + theta_odom_2;
-
-        std::cout<< "x_goal 1. Kreis: " << x_goal << std::endl;
-        std::cout<< "y_goal 1. Kreis: " << y_goal << std::endl;
-        std::cout<< "theta_goal 1. Kreis: " << theta_goal << std::endl;
-     
-        // Aktuellen Werte speichern (Relativ zum Startpunkt)
         odom_x = LidarPtr->odom[0]; //- sqrt(x_odom_2*x_odom_2);
         odom_y = LidarPtr->odom[1]; //- sqrt(y_odom_2*y_odom_2); 
-        odom_theta = LidarPtr->odom[4];
+        odom_theta_deg = LidarPtr->odom[4];
+        odom_theta_rad=deg2rad(odom_theta_deg);
+
+        std::cout<< "x_goal 1. Kreis: " << x_goal_1KP << std::endl;
+        std::cout<< "y_goal 1. Kreis: " << y_goal_1KP << std::endl;
+        // std::cout<< "theta_goal 1. Kreis: " << theta_goal << std::endl;
+     
         //angle = LidarPtr->angle;
         //distance = LidarPtr->distance;
 
@@ -409,26 +444,31 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
 
         std::cout << "X 1. Kreis: " << odom_x << std::endl;
         std::cout << "Y 1. Kreis: " << odom_y << std::endl;
-        std::cout << "Theta 1. Kreis: " << odom_theta << std::endl;
+        std::cout << "Theta 1. Kreis: " << odom_theta_deg << std::endl;
         //std::cout << "Lidar X: " << lidar_x << std::endl;
         //std::cout << "Lidar Y: " << lidar_y << std::endl;
 
         // Calculate the pos. + ori. of the robot in respect to the laser and odom data
 
-        float diff_x = x_goal - odom_x;    // ?
-        float diff_y = y_goal - odom_y;        // ?
-        float diff_theta = theta_goal - odom_theta;              // Für lineare Beweg. bleibt teta = 0
-
+        float diff_x = x_goal_1KP - odom_x;    // ?
+        float diff_y = y_goal_1KP - odom_y;        // ?
+        float diff_theta = theta_goal_1KP - odom_theta_rad;         //  MIT DIFF THETA TESTEN
+      
+        // float diff_theta = theta_goal - odom_theta;              // Für lineare Beweg. bleibt teta = 0
+        float DeltaX1_start = x_goal_1KP - x_odom_2;
+        float DeltaY1_start=y_goal_1KP-y_odom_2;
+        
+        float rho_start=sqrt(DeltaX1_start*DeltaX1_start+DeltaY1_start*DeltaY1_start);
         float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
-        float alpha = - odom_theta + atan2(diff_y,diff_x);
-        float beta = - odom_theta - alpha;
+        float alpha_rad = - odom_theta_rad + atan2(diff_y,diff_x);
+        float beta_rad = - odom_theta_rad - alpha_rad;
 
         k_alpha = 0.2;
         k_beta = -0.05;
         k_rho  = 0.1;
 
         float v = k_rho * rho;
-        float w = k_alpha * alpha + k_beta * beta;
+        float w = k_alpha * alpha_rad + k_beta * beta_rad;
             
         if(v > 0.06){     
             v = 0.06;
@@ -438,6 +478,12 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
             w = 0.07;
         }
 
+        std::cout << "Diff X " << diff_x << std::endl;
+        std::cout << "Diff Y "<< diff_y << std::endl;
+        std::cout <<  "Rho "<<rho << std::endl;
+        std::cout << "Theta Goal "<< theta_goal_1KP << std::endl;
+
+
         msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
         strcpy(sendString, msg.c_str()); // Befehl zum Fahren
 
@@ -445,13 +491,14 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
         // std::cout << angle << std::endl;
         // std::cout << distance << std::endl;
 
-        if (diff_y < 0.05)
+        // TODO: Abbruchbedingung anpassen
+        if (rho_start+rho<=1.05*rho_start )
         {
-            cout << "Erster Kreispunkt erreicht" << endl;
+            cout << "1. Kreispunkt erreicht" << endl;
             cout << "....................................." << endl;
             msg = "---START---{\"linear\": 0.0, \"angular\": 0.00}___END___";
             strcpy(sendString, msg.c_str());
-            sleep(1);
+            sleep(5);
             break;
         }
         
@@ -490,7 +537,11 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
 
     //--------------------------------------ZWEITER KREISVIERTEL--------------------------------------------
 
-    for ( ; ; )
+    float x_odom_3 = LidarPtr->odom[0];
+    float y_odom_3 = LidarPtr->odom[1];
+    float theta_odom_3 = LidarPtr->odom[4];
+
+        for ( ; ; )
     {
         while (semctl(ID_LIDAR, 0, GETVAL) != 0)
         
@@ -506,378 +557,492 @@ int main(int argc, char *argv[]) //Aufruf der main() mit Befehlszeilenargument
             printf("semb: V-operation did not succeed.\n");
         }
 
-        // Speichern der aktullen Position, da diese später erneut angefahren werden muss
-        float x_odom_3 = LidarPtr->odom[0];
-        float temp = LidarPtr->odom[1];
-        if (temp < 0) {
-            temp = sqrt(temp*temp);
-        }
-        float y_odom_3 = temp;
-        float theta_odom_3 = LidarPtr->odom[4];
+        odom_x = LidarPtr->odom[0]; //- sqrt(x_odom_2*x_odom_2);
+        odom_y = LidarPtr->odom[1]; //- sqrt(y_odom_2*y_odom_2); 
+        odom_theta_deg = LidarPtr->odom[4];
+        odom_theta_rad=deg2rad(odom_theta_deg);
 
+        std::cout<< "x_goal 2. Kreis: " << x_goal_2KP << std::endl;
+        std::cout<< "y_goal 2. Kreis: " << y_goal_2KP << std::endl;
+        // std::cout<< "theta_goal 1. Kreis: " << theta_goal << std::endl;
 
-        float x_goal;
-        float y_goal;
-        float theta_goal;
+        // angle = LidarPtr->angle;
+        // distance = LidarPtr->distance;
 
-        // if(j == 0) {
-        //     x_goal = x_odom_2;
-        //     y_goal = y_odom_2;
-        //     theta_goal = theta_odom_2 + 90;
-        // }
+        // lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+        // lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
 
-        // x_goal = 1;
-        // y_goal = 0.2;
-        // theta_goal = theta_odom_2;       
+        std::cout << "X 2. Kreis: " << odom_x << std::endl;
+        std::cout << "Y 2. Kreis: " << odom_y << std::endl;
+        std::cout << "Theta 2. Kreis: " << odom_theta_deg << std::endl;
+        //std::cout << "Lidar X: " << lidar_x << std::endl;
+        //std::cout << "Lidar Y: " << lidar_y << std::endl;
+
+        // Calculate the pos. + ori. of the robot in respect to the laser and odom data
+
+        float diff_x = x_goal_2KP - odom_x;    // ?
+        float diff_y = y_goal_2KP - odom_y;        // ?
+        float diff_theta = theta_goal_2KP - odom_theta_rad;       //   TEST OB MIT DIFF THETAT KLAPPT
+        float DeltaX2_start = x_goal_2KP-x_odom_3;
+        float DeltaY2_start=y_goal_2KP-y_odom_3;
         
-        x_goal = x_odom_3 + 2;
-        y_goal = y_odom_3 + 1;
-        theta_goal = theta_odom_2 + 45;       
+        float rho_start=sqrt(DeltaX2_start*DeltaX2_start+DeltaY2_start*DeltaY2_start);
+        float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
+        float alpha_rad = - odom_theta_rad + atan2(diff_y,diff_x);
+        float beta_rad = - odom_theta_rad - alpha_rad;
+
+        k_alpha = 0.2;
+        k_beta = -0.05;
+        k_rho  = 0.1;
+
+        float v = k_rho * rho;
+        float w = k_alpha * alpha_rad + k_beta * beta_rad;
+            
+        if(v > 0.06){     
+            v = 0.06;
+        }
+
+        if(w > 0.07){
+            w = 0.07;
+        }
+
+        std::cout << "Diff X " << diff_x << std::endl;
+        std::cout << "Diff Y "<< diff_y << std::endl;
+        std::cout <<  "Rho "<< rho << std::endl;
+        std::cout << "Theta Goal "<< theta_goal_2KP << std::endl;
+
+
+        msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
+        strcpy(sendString, msg.c_str()); // Befehl zum Fahren
+
+        std::cout << msg << std::endl;
+        // std::cout << angle << std::endl;
+        // std::cout << distance << std::endl;
+
+        if (rho_start+rho<=1.05*rho_start )
+        {
+            cout << "2. Kreispunkt erreicht" << endl;
+            cout << "....................................." << endl;
+            msg = "---START---{\"linear\": 0.0, \"angular\": 0.00}___END___";
+            strcpy(sendString, msg.c_str());
+            sleep(5);
+            break;
+        }
+        
+        if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+        {
+            DieWithError("socket() failed");
+        }
+
+        /* Construct the server address structure */
+        memset(&echoServAddr, 0, sizeof(echoServAddr)); /* Zero out structure */
+        echoServAddr.sin_family = AF_INET;              /* Internet address family */
+        echoServAddr.sin_addr.s_addr = inet_addr(servIP);   /* Server IP address */
+        echoServAddr.sin_port = htons(echoServPort);           /* Server port */
+
+        if (connect(sock, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) < 0)
+        {
+            DieWithError("connect() failed");
+        }
+        sendStringLen = msg.length();
+        if (sendto(sock, sendString, sendStringLen, 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) != sendStringLen)
+            DieWithError("sendto() sent a different number of bytes than expected");
+        close(sock);
+
+        operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
+        operations_LIDAR[0].sem_op = -1; /* Which operation? Subtract 1 from semaphore value : */
+        operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
+        /* So do the operation! */
+        // std::cout<<"2:      LIDAR"<<std::endl;
+        retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
+        if (retval_LIDAR != 0)
+        {
+            printf("semb: V-operation did not succeed.\n");
+        }
+       
+    }
+
+//--------------------------------------DRITTER KREISVIERTEL--------------------------------------------
+
+    float x_odom_4 = LidarPtr->odom[0];
+    float y_odom_4 = LidarPtr->odom[1];
+    float theta_odom_4 = LidarPtr->odom[4];
+
+        for ( ; ; )
+    {
+        while (semctl(ID_LIDAR, 0, GETVAL) != 0)
+        
+        /* Set up the sembuf structure. */
+        operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
+        operations_LIDAR[0].sem_op = +1; /* Which operation? Subtract 1 from semaphore value : */
+        operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
+
+
+        retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
+        if (retval_LIDAR != 0)
+        {
+            printf("semb: V-operation did not succeed.\n");
+        }
+
+        odom_x = LidarPtr->odom[0]; //- sqrt(x_odom_2*x_odom_2);
+        odom_y = LidarPtr->odom[1]; //- sqrt(y_odom_2*y_odom_2); 
+        odom_theta_deg = LidarPtr->odom[4];
+        odom_theta_rad=deg2rad(odom_theta_deg);
+
+        std::cout<< "x_goal 3. Kreis: " << x_goal_3KP << std::endl;
+        std::cout<< "y_goal 3. Kreis: " << y_goal_3KP << std::endl;
+        // std::cout<< "theta_goal 1. Kreis: " << theta_goal << std::endl;
+
+        // angle = LidarPtr->angle;
+        // distance = LidarPtr->distance;
+
+        // lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+        // lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+
+        std::cout << "X 3. Kreis: " << odom_x << std::endl;
+        std::cout << "Y 3. Kreis: " << odom_y << std::endl;
+        std::cout << "Theta 3. Kreis: " << odom_theta_deg << std::endl;
+        //std::cout << "Lidar X: " << lidar_x << std::endl;
+        //std::cout << "Lidar Y: " << lidar_y << std::endl;
+
+        // Calculate the pos. + ori. of the robot in respect to the laser and odom data
+
+        float diff_x = x_goal_3KP - odom_x;    // ?
+        float diff_y = y_goal_3KP - odom_y;        // ?
+        float diff_theta = theta_goal_3KP - odom_theta_rad;       //   TEST OB MIT DIFF THETAT KLAPPT
+        float DeltaX3_start = x_goal_3KP - x_odom_4;
+        float DeltaY3_start = y_goal_3KP - y_odom_4;
+        
+        float rho_start=sqrt(DeltaX3_start*DeltaX3_start+DeltaY3_start*DeltaY3_start);
+        float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
+        float alpha_rad = - odom_theta_rad + atan2(diff_y,diff_x);
+        float beta_rad = - odom_theta_rad - alpha_rad;
+
+        k_alpha = 0.2;
+        k_beta = -0.05;
+        k_rho  = 0.1;
+
+        float v = k_rho * rho;
+        float w = k_alpha * alpha_rad + k_beta * beta_rad;
+            
+        if(v > 0.06){     
+            v = 0.06;
+        }
+
+        if(w > 0.07){
+            w = 0.07;
+        }
+
+        std::cout << "Diff X " << diff_x << std::endl;
+        std::cout << "Diff Y "<< diff_y << std::endl;
+        std::cout <<  "Rho "<< rho << std::endl;
+        std::cout << "Theta Goal "<< theta_goal_2KP << std::endl;
+
+
+        msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
+        strcpy(sendString, msg.c_str()); // Befehl zum Fahren
+
+        std::cout << msg << std::endl;
+        // std::cout << angle << std::endl;
+        // std::cout << distance << std::endl;
+
+        if (rho_start+rho<=1.05*rho_start )
+        {
+            cout << "3. Kreispunkt erreicht" << endl;
+            cout << "....................................." << endl;
+            msg = "---START---{\"linear\": 0.0, \"angular\": 0.00}___END___";
+            strcpy(sendString, msg.c_str());
+            sleep(5);
+            break;
+        }
+        
+        if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+        {
+            DieWithError("socket() failed");
+        }
+
+        /* Construct the server address structure */
+        memset(&echoServAddr, 0, sizeof(echoServAddr)); /* Zero out structure */
+        echoServAddr.sin_family = AF_INET;              /* Internet address family */
+        echoServAddr.sin_addr.s_addr = inet_addr(servIP);   /* Server IP address */
+        echoServAddr.sin_port = htons(echoServPort);           /* Server port */
+
+        if (connect(sock, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) < 0)
+        {
+            DieWithError("connect() failed");
+        }
+        sendStringLen = msg.length();
+        if (sendto(sock, sendString, sendStringLen, 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) != sendStringLen)
+            DieWithError("sendto() sent a different number of bytes than expected");
+        close(sock);
+
+        operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
+        operations_LIDAR[0].sem_op = -1; /* Which operation? Subtract 1 from semaphore value : */
+        operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
+        /* So do the operation! */
+        // std::cout<<"2:      LIDAR"<<std::endl;
+        retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
+        if (retval_LIDAR != 0)
+        {
+            printf("semb: V-operation did not succeed.\n");
+        }
+       
+    }
+
+//--------------------------------------VIERTE KREISVIERTEL--------------------------------------------
+
+    float x_odom_5 = LidarPtr->odom[0];
+    float y_odom_5 = LidarPtr->odom[1];
+    float theta_odom_5 = LidarPtr->odom[4];
+
+        for ( ; ; )
+    {
+        while (semctl(ID_LIDAR, 0, GETVAL) != 0)
+        
+        /* Set up the sembuf structure. */
+        operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
+        operations_LIDAR[0].sem_op = +1; /* Which operation? Subtract 1 from semaphore value : */
+        operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
+
+
+        retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
+        if (retval_LIDAR != 0)
+        {
+            printf("semb: V-operation did not succeed.\n");
+        }
+
+        odom_x = LidarPtr->odom[0]; //- sqrt(x_odom_2*x_odom_2);
+        odom_y = LidarPtr->odom[1]; //- sqrt(y_odom_2*y_odom_2); 
+        odom_theta_deg = LidarPtr->odom[4];
+        odom_theta_rad=deg2rad(odom_theta_deg);
+
+        std::cout<< "x_goal 4. Kreis: " << x_goal_3KP << std::endl;
+        std::cout<< "y_goal 4. Kreis: " << y_goal_3KP << std::endl;
+        // std::cout<< "theta_goal 1. Kreis: " << theta_goal << std::endl;
+
+        // angle = LidarPtr->angle;
+        // distance = LidarPtr->distance;
+
+        // lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+        // lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+
+        std::cout << "X 4. Kreis: " << odom_x << std::endl;
+        std::cout << "Y 4. Kreis: " << odom_y << std::endl;
+        std::cout << "Theta 4. Kreis: " << odom_theta_deg << std::endl;
+        //std::cout << "Lidar X: " << lidar_x << std::endl;
+        //std::cout << "Lidar Y: " << lidar_y << std::endl;
+
+        // Calculate the pos. + ori. of the robot in respect to the laser and odom data
+
+        float diff_x = x_goal_4KP - odom_x;    // ?
+        float diff_y = y_goal_4KP - odom_y;        // ?
+        float diff_theta = theta_goal_4KP - odom_theta_rad;       //   TEST OB MIT DIFF THETAT KLAPPT
+        float DeltaX4_start = x_goal_4KP - x_odom_5;
+        float DeltaY4_start = y_goal_4KP - y_odom_5;
+        
+        float rho_start=sqrt(DeltaX4_start*DeltaX4_start+DeltaY4_start*DeltaY4_start);
+        float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
+        float alpha_rad = - odom_theta_rad + atan2(diff_y,diff_x);
+        float beta_rad = - odom_theta_rad - alpha_rad;
+
+        k_alpha = 0.2;
+        k_beta = -0.05;
+        k_rho  = 0.1;
+
+        float v = k_rho * rho;
+        float w = k_alpha * alpha_rad + k_beta * beta_rad;
+            
+        if(v > 0.06){     
+            v = 0.06;
+        }
+
+        if(w > 0.07){
+            w = 0.07;
+        }
+
+        std::cout << "Diff X " << diff_x << std::endl;
+        std::cout << "Diff Y "<< diff_y << std::endl;
+        std::cout <<  "Rho "<< rho << std::endl;
+        std::cout << "Theta Goal "<< theta_goal_2KP << std::endl;
+
+
+        msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
+        strcpy(sendString, msg.c_str()); // Befehl zum Fahren
+
+        std::cout << msg << std::endl;
+        // std::cout << angle << std::endl;
+        // std::cout << distance << std::endl;
+
+        if (rho_start+rho<=1.05*rho_start )
+        {
+            cout << "4. Kreispunkt erreicht" << endl;
+            cout << "....................................." << endl;
+            msg = "---START---{\"linear\": 0.0, \"angular\": 0.00}___END___";       // TEST: 0-Befehl überprüfen bzw. anpassen
+            strcpy(sendString, msg.c_str());
+            sleep(5);
+            break;
+        }
+        
+        if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+        {
+            DieWithError("socket() failed");
+        }
+
+        /* Construct the server address structure */
+        memset(&echoServAddr, 0, sizeof(echoServAddr)); /* Zero out structure */
+        echoServAddr.sin_family = AF_INET;              /* Internet address family */
+        echoServAddr.sin_addr.s_addr = inet_addr(servIP);   /* Server IP address */
+        echoServAddr.sin_port = htons(echoServPort);           /* Server port */
+
+        if (connect(sock, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) < 0)
+        {
+            DieWithError("connect() failed");
+        }
+        sendStringLen = msg.length();
+        if (sendto(sock, sendString, sendStringLen, 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) != sendStringLen)
+            DieWithError("sendto() sent a different number of bytes than expected");
+        close(sock);
+
+        operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
+        operations_LIDAR[0].sem_op = -1; /* Which operation? Subtract 1 from semaphore value : */
+        operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
+        /* So do the operation! */
+        // std::cout<<"2:      LIDAR"<<std::endl;
+        retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
+        if (retval_LIDAR != 0)
+        {
+            printf("semb: V-operation did not succeed.\n");
+        }
+       
+    }
+
+
+// ------------------------------------------------- LINEARE BEWEGUNG ZURÜCK -------------------------------------------------------------------------
+
+    for (;;)
+    {
+        while (semctl(ID_LIDAR, 0, GETVAL) != 0)
+         
+        // SEMAPHOREN-POST-FUNKTION
+        operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
+        operations_LIDAR[0].sem_op = +1; /* Which operation? Subtract 1 from semaphore value : */
+        operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
+
+
+        retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
+        if (retval_LIDAR != 0)
+        {
+            printf("semb: V-operation did not succeed.\n");
+        }
+
+        float x_goal = x_odom_1;
+        float y_goal = y_odom_1;
+        float theta_goal = theta_odom_1 - 179;
+
+        std::cout<< "x_odom_last_goal: " << x_odom_1 << std::endl;
+        std::cout<< "y_odom_last_goal: " << y_odom_1 << std::endl;
+        std::cout<< "theta_odom_last_goal: " << theta_odom_1 << std::endl;
+        // std::cout<< "x_goal: " << x_goal << std::endl;q
+        // std::cout<< "y_goal: " << y_goal << std::endl;
+        // std::cout<< "theta_goal: " << theta_goal << std::endl;
+
+
+        // Aktuellen Werte speichern (Relativ zum Startpunkt)
+        odom_x = LidarPtr->odom[0];
+        odom_y = LidarPtr->odom[1]; 
+        odom_theta_deg = LidarPtr->odom[4];
+        odom_theta_rad = deg2rad(odom_theta_deg);
+        //angle = LidarPtr->angle;
+        //distance = LidarPtr->distance;
+
+        //lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+        //lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
+
+        std::cout << "X: " << odom_x << std::endl;
+        std::cout << "Y: " << odom_y << std::endl;
+        std::cout << "Theta: " << odom_theta_deg << std::endl;
+        //std::cout << "Lidar X: " << lidar_x << std::endl;
+        //std::cout << "Lidar Y: " << lidar_y << std::endl;
+
+        // Calculate the pos. + ori. of the robot in respect to the laser and odom data
+
+        float diff_x = x_goal - odom_x;    // ?
+        float diff_y = y_goal - odom_y;        // ?
+        float diff_theta = deg2rad(theta_goal) - odom_theta_rad;                                // Für lineare Beweg. bleibt teta = 0
+
+        float rho = sqrt((diff_x*diff_x) + (diff_y*diff_y));    
+        float alpha_rad = - odom_theta_rad + atan2(diff_y,diff_x);  // TEST: Mit 'diff_odom'
+        float beta_rad = - odom_theta_rad - alpha_rad;              // TEST: 'diff_odom'
+
+        k_alpha = 0;
+        k_beta = 0;
+        k_rho=0.4;
+
+        float v = k_rho * rho;
+        float w = k_alpha * alpha_rad + k_beta * beta_rad;
+            
+        if(v > 0.06){     
+            v = 0.06;
+        }
+
+        if(w > 0.07){
+            w = 0.07;
+        }
+
+        msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
+        strcpy(sendString, msg.c_str()); // Befehl zum Fahren
+
+        std::cout << msg << std::endl;
+
+        if (diff_x < 0.05)          // TEST: Ggf. über Rho-Bedingung
+        {
+            cout << "Endpunkt erreicht" << endl;
+            cout << "....................................." << endl;
+            msg = "---START---{\"linear\": 0.0, \"angular\": 0.00}___END___";
+            strcpy(sendString, msg.c_str());
+            sleep(0.5);
+            break;
+        }
+        
+        if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+        {
+            DieWithError("socket() failed");
+        }
+
+        /* Construct the server address structure */
+        memset(&echoServAddr, 0, sizeof(echoServAddr)); /* Zero out structure */
+        echoServAddr.sin_family = AF_INET;              /* Internet address family */
+        echoServAddr.sin_addr.s_addr = inet_addr(servIP);   /* Server IP address */
+        echoServAddr.sin_port = htons(echoServPort);           /* Server port */
+
+        if (connect(sock, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) < 0)
+        {
+            DieWithError("connect() failed");
+        }
+        sendStringLen = msg.length();
+        if (sendto(sock, sendString, sendStringLen, 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) != sendStringLen)
+            DieWithError("sendto() sent a different number of bytes than expected");
+        close(sock);
     
-        // else if(j == 2) {
-        //     x_goal = 1;
-        //     y_goal = -0.2;
-        //     theta_goal = 180;       
-        // }
-        // else if(j == 3) {
-        //     x_goal = x_odom_2; 
-        //     y_goal = y_odom_2;
-        //     theta_goal = theta_odom_2 + 180;       
-        // }
-
-        //float gamma = theta_odom_2 - 45;     // 45 Grad, entsprechend der Geometrie des Viertelkreises
-        // float x_goal = sqrt(2*radius*radius)*cos(gamma) + x_odom_2;
-        // float y_goal = sqrt(2*radius*radius)*sin(gamma) + y_odom_2;
-        // //float theta_goal = 0 + theta_odom_2;
-
-        std::cout<< "x_goal 2.K: " << x_goal << std::endl;
-        std::cout<< "y_goal 2.K: " << y_goal << std::endl;
-        std::cout<< "theta_goal 2.K: " << theta_goal << std::endl;
-     
-        // Aktuellen Werte speichern (Relativ zum Startpunkt)
-        odom_x = LidarPtr->odom[0]; //- sqrt(x_odom_2*x_odom_2);
-        odom_y = LidarPtr->odom[1]; //- sqrt(y_odom_2*y_odom_2); 
-        odom_theta = LidarPtr->odom[4];
-        //angle = LidarPtr->angle;
-        //distance = LidarPtr->distance;
-
-        //lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
-        //lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
-
-        std::cout << "X 2.K: " << odom_x << std::endl;
-        std::cout << "Y 2.K: " << odom_y << std::endl;
-        std::cout << "Theta 2.K: " << odom_theta << std::endl;
-        //std::cout << "Lidar X: " << lidar_x << std::endl;
-        //std::cout << "Lidar Y: " << lidar_y << std::endl;
-
-        // Calculate the pos. + ori. of the robot in respect to the laser and odom data
-
-        float diff_x = x_goal - odom_x;    // ?
-        float diff_y = y_goal - odom_y;        // ?
-        float diff_theta = theta_goal - odom_theta;              // Für lineare Beweg. bleibt teta = 0
-
-        float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
-        float alpha = diff_theta + atan2(diff_y,diff_x);
-        float beta = diff_theta - alpha;
-
-        k_alpha = 0.2;
-        k_beta = -0.05;
-        k_rho  = 0.1;
-
-        float v = k_rho * rho;
-        float w = k_alpha * alpha + k_beta * beta;
-            
-        if(v > 0.06){     
-            v = 0.06;
-        }
-
-        if(w > 0.07){
-            w = 0.07;
-        }
-
-        msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
-        strcpy(sendString, msg.c_str()); // Befehl zum Fahren
-
-        std::cout << msg << std::endl;
-        // std::cout << angle << std::endl;
-        // std::cout << distance << std::endl;
-
-        if (diff_x<0.1 && diff_y<0.1)
-        {
-            cout << "Zweiter Kreispunkt erreicht" << endl;
-            cout << "....................................." << endl;
-            msg = "---START---{\"linear\": 0.0, \"angular\": 0.00}___END___";
-            strcpy(sendString, msg.c_str());
-            sleep(1);
-            break;
-        }
-
-        if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
-        {
-            DieWithError("socket() failed");
-        }
-
-        /* Construct the server address structure */
-        memset(&echoServAddr, 0, sizeof(echoServAddr)); /* Zero out structure */
-        echoServAddr.sin_family = AF_INET;              /* Internet address family */
-        echoServAddr.sin_addr.s_addr = inet_addr(servIP);   /* Server IP address */
-        echoServAddr.sin_port = htons(echoServPort);           /* Server port */
-
-        if (connect(sock, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) < 0)
-        {
-            DieWithError("connect() failed");
-        }
-        sendStringLen = msg.length();
-        if (sendto(sock, sendString, sendStringLen, 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) != sendStringLen)
-            DieWithError("sendto() sent a different number of bytes than expected");
-        close(sock);
-
+        
+        // SEMAPHOREN-WAIT-FUNCTION
         operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
         operations_LIDAR[0].sem_op = -1; /* Which operation? Subtract 1 from semaphore value : */
         operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
         /* So do the operation! */
-        // std::cout<<"2:      LIDAR"<<std::endl;
+       
         retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
         if (retval_LIDAR != 0)
         {
             printf("semb: V-operation did not succeed.\n");
-        }        
+        }
+
     }
 
-    // ----------------------------------------- 3. KREISVIERTEL ---------------------------
-    for ( ; ; )
-    {
-        while (semctl(ID_LIDAR, 0, GETVAL) != 0)
-        
-        /* Set up the sembuf structure. */
-        operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
-        operations_LIDAR[0].sem_op = +1; /* Which operation? Subtract 1 from semaphore value : */
-        operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
 
 
-        retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
-        if (retval_LIDAR != 0)
-        {
-            printf("semb: V-operation did not succeed.\n");
-        }
-
-        float x_goal;
-        float y_goal;
-        float theta_goal;
-  
-
-        x_goal = 1;
-        y_goal = -0.2;
-        theta_goal = theta_odom_2 + 135;       
-        
-        // else if(j == 3) {
-        //     x_goal = x_odom_2; 
-        //     y_goal = y_odom_2;
-        //     theta_goal = theta_odom_2 + 180;       
-        // }
-
-        //float gamma = theta_odom_2 - 45;     // 45 Grad, entsprechend der Geometrie des Viertelkreises
-        // float x_goal = sqrt(2*radius*radius)*cos(gamma) + x_odom_2;
-        // float y_goal = sqrt(2*radius*radius)*sin(gamma) + y_odom_2;
-        // //float theta_goal = 0 + theta_odom_2;
-
-        std::cout<< "x_goal 3.K: " << x_goal << std::endl;
-        std::cout<< "y_goal 3.K: " << y_goal << std::endl;
-        std::cout<< "theta_goal 3.K: " << theta_goal << std::endl;
-     
-        // Aktuellen Werte speichern (Relativ zum Startpunkt)
-        odom_x = LidarPtr->odom[0]; //- sqrt(x_odom_2*x_odom_2);
-        odom_y = LidarPtr->odom[1]; //- sqrt(y_odom_2*y_odom_2); 
-        odom_theta = LidarPtr->odom[4];
-        //angle = LidarPtr->angle;
-        //distance = LidarPtr->distance;
-
-        //lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
-        //lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
-
-        std::cout << "X 3.K: " << odom_x << std::endl;
-        std::cout << "Y 3.K: " << odom_y << std::endl;
-        std::cout << "Theta 3.K: " << odom_theta << std::endl;
-        //std::cout << "Lidar X: " << lidar_x << std::endl;
-        //std::cout << "Lidar Y: " << lidar_y << std::endl;
-
-        // Calculate the pos. + ori. of the robot in respect to the laser and odom data
-
-        float diff_x = x_goal - odom_x;    // ?
-        float diff_y = y_goal - odom_y;        // ?
-        float diff_theta = theta_goal - odom_theta;              // Für lineare Beweg. bleibt teta = 0
-
-        float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
-        float alpha = diff_theta + atan2(diff_y,diff_x);
-        float beta = diff_theta - alpha;
-
-        k_alpha = 0.2;
-        k_beta = -0.05;
-        k_rho  = 0.1;
-
-        float v = k_rho * rho;
-        float w = k_alpha * alpha + k_beta * beta;
-            
-        if(v > 0.06){     
-            v = 0.06;
-        }
-
-        if(w > 0.07){
-            w = 0.07;
-        }
-
-        msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
-        strcpy(sendString, msg.c_str()); // Befehl zum Fahren
-
-        std::cout << msg << std::endl;
-        // std::cout << angle << std::endl;
-        // std::cout << distance << std::endl;
-
-        if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
-        {
-            DieWithError("socket() failed");
-        }
-
-        /* Construct the server address structure */
-        memset(&echoServAddr, 0, sizeof(echoServAddr)); /* Zero out structure */
-        echoServAddr.sin_family = AF_INET;              /* Internet address family */
-        echoServAddr.sin_addr.s_addr = inet_addr(servIP);   /* Server IP address */
-        echoServAddr.sin_port = htons(echoServPort);           /* Server port */
-
-        if (connect(sock, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) < 0)
-        {
-            DieWithError("connect() failed");
-        }
-        sendStringLen = msg.length();
-        if (sendto(sock, sendString, sendStringLen, 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) != sendStringLen)
-            DieWithError("sendto() sent a different number of bytes than expected");
-        close(sock);
-
-        operations_LIDAR[0].sem_num = 0; /* Which semaphore in the semaphore array : */
-        operations_LIDAR[0].sem_op = -1; /* Which operation? Subtract 1 from semaphore value : */
-        operations_LIDAR[0].sem_flg = 0; /* Set the flag so we will wait : */
-        /* So do the operation! */
-        // std::cout<<"2:      LIDAR"<<std::endl;
-        retval_LIDAR = semop(ID_LIDAR, operations_LIDAR, 1);
-        if (retval_LIDAR != 0)
-        {
-            printf("semb: V-operation did not succeed.\n");
-        }
-
-        if (diff_x<0.1 && diff_y<0.1 && diff_theta<4)
-        {
-            cout << "Erster Kreispunkt erreicht" << endl;
-            cout << "....................................." << endl;
-            msg = "---START---{\"linear\": 0.0, \"angular\": 0.00}___END___";
-            strcpy(sendString, msg.c_str());
-            sleep(1);
-            break;
-        }
-        
-    }
 
 }
-    // Speichern der aktullen Position, da diese später erneut angefahren werden muss
-    // float x_odom_3 = LidarPtr->odom[0];
-    // float y_odom_3 = LidarPtr->odom[1];
-    // float theta_odom_3 = LidarPtr->odom[4];
 
-
-//     // 2. VIERTEL-KREIS
-//     for (;;)
-//     {
-       
-//         float gamma = theta_odom_3 + 45;     // entspricht den Winkelbeziehungen im Kreis
-//         float x_goal = sqrt(2*radius*radius)*cos(gamma) + x_odom_3;
-//         float y_goal = sqrt(2*radius*radius)*sin(gamma) + y_odom_3;
-        
-//         float theta_goal =  theta_odom_3 + 90;
-     
-//         // Aktuellen Werte speichern (Relativ zum Startpunkt)
-//         odom_x = LidarPtr->odom[0] - x_odom_3;
-//         odom_y = LidarPtr->odom[1] - y_odom_3; 
-//         odom_theta = LidarPtr->odom[4] - theta_odom_3;
-//         //angle = LidarPtr->angle;
-//         //distance = LidarPtr->distance;
-
-//         //lidar_x = first_x_lidar - (cos((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
-//         //lidar_y = first_y_lidar - (sin((angle*M_PI)/180)*distance); // nur zur Überprüfung der Abweichung
-
-//         std::cout << "X: " << odom_x << std::endl;
-//         std::cout << "Y: " << odom_y << std::endl;
-//         std::cout << "Theta: " << odom_theta << std::endl;
-//         //std::cout << "Lidar X: " << lidar_x << std::endl;
-//         //std::cout << "Lidar Y: " << lidar_y << std::endl;
-
-//         // Calculate the pos. + ori. of the robot in respect to the laser and odom data
-
-//         float diff_x = x_goal - odom_x;    // ?
-//         float diff_y = y_goal - odom_y;        // ?
-//         float diff_theta = theta_goal - odom_theta;                                // Für lineare Beweg. bleibt teta = 0
-
-//         std::cout<< "x_goal: " << x_goal << std::endl;
-//         std::cout<< "y_goal: " << y_goal << std::endl;
-//         std::cout<< "theta_goal: " << theta_goal << std::endl;
-
-//         float rho = sqrt(diff_x*diff_x + diff_y*diff_y);    
-//         float alpha = -diff_theta + atan2(diff_y,diff_x);
-//         float beta = -diff_theta - alpha;
-
-//         k_alpha = 0.2;
-//         k_beta = -0.05;
-
-//         float v = k_rho * rho;
-//         float w = k_alpha * alpha + k_beta * beta;
-            
-//         if(v > 0.06){     
-//             v = 0.06;
-//         }
-
-//         if(w > 0.07){
-//             w = 0.07;
-//         }
-
-//         msg = "---START---{\"linear\": " + to_string(v) + ", \"angular\": " + to_string(w) + "}___END___";
-//         strcpy(sendString, msg.c_str()); // Befehl zum Fahren
-
-//         std::cout << msg << std::endl;
-//         // std::cout << angle << std::endl;
-//         // std::cout << distance << std::endl;
-
-//         if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
-//         {
-//             DieWithError("socket() failed");
-//         }
-
-//         /* Construct the server address structure */
-//         memset(&echoServAddr, 0, sizeof(echoServAddr)); /* Zero out structure */
-//         echoServAddr.sin_family = AF_INET;              /* Internet address family */
-//         echoServAddr.sin_addr.s_addr = inet_addr(servIP);   /* Server IP address */
-//         echoServAddr.sin_port = htons(echoServPort);           /* Server port */
-
-//         if (connect(sock, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) < 0)
-//         {
-//             DieWithError("connect() failed");
-//         }
-//         sendStringLen = msg.length();
-//         if (sendto(sock, sendString, sendStringLen, 0, (struct sockaddr *)&echoServAddr, sizeof(echoServAddr)) != sendStringLen)
-//             DieWithError("sendto() sent a different number of bytes than expected");
-//         close(sock);
-
-
-//         if (diff_x<0.07)
-//         {
-//             cout << "Zweiter Kreispunkt erreicht" << endl;
-//             cout << "....................................." << endl;
-
-//             break;
-//         }
-
-//         sleep(0.1);
-//     }
-
-//     sleep(1);
-//     /* NOT REACHED */
-// }
 
 
