@@ -1,0 +1,3 @@
+/home/parallels/Desktop/raffael/build/CMakeFiles/raffael.dir
+/home/parallels/Desktop/raffael/build/CMakeFiles/edit_cache.dir
+/home/parallels/Desktop/raffael/build/CMakeFiles/rebuild_cache.dir
